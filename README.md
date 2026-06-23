@@ -1,6 +1,6 @@
 # 🎯 Uplift Targeting Engine — *who should we treat, not who will convert*
 
-> **End-to-end deployed product (Portfolio idea #12, hard variant).**
+> **End-to-end deployed product**
 > Predicts the **incremental causal effect** of an intervention (discount, email, call) per
 > user — the *persuadables* — instead of predicting who converts anyway. Trains meta-learners
 > on experiment data, evaluates with Qini/uplift curves and **policy value vs random
