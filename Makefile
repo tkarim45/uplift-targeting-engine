@@ -12,6 +12,9 @@ data:
 hillstrom:
 	$(PY) -m src.data --dataset hillstrom --campaign any --outcome visit --out data/processed/experiment.parquet
 
+criteo:  # 311MB download; --sample-frac keeps it laptop-sized (~1.25M rows)
+	$(PY) -m src.data --dataset criteo --sample-frac 0.05 --outcome visit --out data/processed/experiment.parquet
+
 train:
 	$(PY) -m src.train --data data/processed/experiment.parquet --learner xlearner
 

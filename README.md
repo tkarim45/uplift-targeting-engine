@@ -71,6 +71,8 @@ $PIP install -r requirements.txt
 $PY -m src.data --dataset simulate --n 50000 --out data/processed/experiment.parquet
 # real data (auto-downloads 64k-row Hillstrom email experiment, caches to data/raw/):
 $PY -m src.data --dataset hillstrom --campaign any --outcome visit --out data/processed/experiment.parquet
+# large-scale (Criteo 25.3M rows; sampled per-chunk to stay laptop-sized):
+$PY -m src.data --dataset criteo --sample-frac 0.05 --outcome visit --out data/processed/experiment.parquet
 
 # 2. train meta-learners + write artifacts
 $PY -m src.train --data data/processed/experiment.parquet --learner xlearner
@@ -100,7 +102,7 @@ docker run -p 8000:8000 uplift-engine
 |---|---|---|
 | **Simulated RCT** (`--dataset simulate`) | Known ground-truth CATE → you can *validate the evaluator itself* | start here |
 | **Hillstrom Email** (`--dataset hillstrom`) | Classic uplift benchmark, 64k, randomized email | ✅ **wired + auto-download** |
-| **Criteo Uplift** | 13M rows, real ad exposure, large-scale | scale story (TODO adapter) |
+| **Criteo Uplift** (`--dataset criteo`) | 25.3M rows, real ad exposure, large-scale | ✅ **wired + chunked-sampled download** |
 | **Lenta / Megafon (X5)** | Retail promo uplift | retail framing (TODO adapter) |
 
 The simulated set is the senior move: with a known true effect you can **prove your Qini
@@ -120,6 +122,21 @@ Sanity numbers (campaign=any, outcome=visit): observed ATE **≈ +6.1%** (email 
 visits), held-out Qini **> 0**, and the uplift policy beats **random** at a fixed budget.
 Note `treat-all` can beat a 30%-budget policy here because the email effect is broadly
 positive — uplift's win is **doing better than random when budget is capped**.
+
+### Criteo specifics (the scale story)
+25.3M randomized ad impressions, 12 anonymized continuous features (`f0..f11`) +
+`treatment`/`exposure`/`visit`/`conversion`. Auto-downloads the 311MB gzip from
+HuggingFace (`criteo/criteo-uplift`) and caches to `data/raw/criteo.csv.gz`.
+
+The adapter reads **in chunks and sub-samples each chunk**, so the full file never lands
+in memory — a genuine large-scale workload that still runs on a laptop:
+- `--sample-frac 0.05` keeps ~1.25M rows (use `1.0` for the full 25.3M if you have RAM)
+- `--max-rows N` caps total rows (stops reading early)
+- `--outcome visit` (~4.7%) or `--outcome conversion` (~0.29%, extreme imbalance)
+
+Models **intent-to-treat** on `treatment` (randomized → unconfounded). Swap to `exposure`
+(impressions actually served) for treatment-on-the-treated. The senior writeup angle:
+**show how Qini/policy value behaves as you scale sample size 50k → 1M → 25M.**
 
 ---
 
@@ -162,7 +179,7 @@ uplift-targeting-engine/
 
 ## Build order (TODO)
 
-- [x] `src/data.py` — simulate RCT with **known true uplift** + **Hillstrom loader (done)**
+- [x] `src/data.py` — simulate RCT (**known truth**) + **Hillstrom** + **Criteo (chunked-sampled)** loaders
 - [ ] `src/learners.py` — S/T/X learners over XGBoost bases (R-learner stretch)
 - [ ] `src/evaluate.py` — Qini + policy value; **validate against simulated ground truth**
 - [ ] `src/train.py` — CLI fit + persist to `artifacts/`
