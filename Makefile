@@ -24,6 +24,9 @@ eval:
 crosscheck:  # validate the from-scratch R-learner against econml (needs econml installed)
 	$(PY) -m src.crosscheck --data data/processed/experiment.parquet
 
+benchmark:  # all learners -> metrics table + Qini chart (regenerates README results)
+	$(PY) -m src.benchmark --data data/processed/experiment.parquet --chart assets/qini.png
+
 api:
 	$(PY) -m uvicorn api.main:app --reload --port 8000
 

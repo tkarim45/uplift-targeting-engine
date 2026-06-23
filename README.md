@@ -27,6 +27,59 @@ user.** That's what separates this from a churn/conversion classifier.
 
 ---
 
+## 📊 Results
+
+All numbers below are reproducible — `python -m src.benchmark --data <parquet>` (same
+30% held-out split, seed 7). Regenerate the chart with `--chart assets/qini.png`.
+
+### Real data — Hillstrom email experiment (64k customers, 18 features)
+Treatment = received an email; outcome = site visit. Observed ATE **+6.7%** (email lifts
+visits). Every learner's Qini curve sits **above the random diagonal** — the model ranks
+*persuadable* customers above the rest:
+
+![Qini curves — Hillstrom](assets/qini_hillstrom.png)
+
+| learner | Qini | policy@30% | random | treat-all | uplift@30% |
+|---|---|---|---|---|---|
+| **slearner** | **47.9** | 0.1242 | 0.1205 | 0.1671 | 302 |
+| tlearner | 28.5 | 0.1257 | 0.1205 | 0.1671 | 321 |
+| xlearner | 22.8 | 0.1252 | 0.1205 | 0.1671 | 315 |
+| rlearner | 22.4 | **0.1269** | 0.1205 | 0.1671 | **337** |
+
+At a **30% budget** the uplift policy beats **random targeting** (0.127 vs 0.121). Note
+`treat-all` (0.167) tops a 30% policy here *because the email's effect is broadly
+positive* — the honest read is: **uplift's win is doing better than random when budget is
+capped**, not beating a blanket campaign that has no budget limit.
+
+### Simulated RCT — validated against known ground truth (40k, effect is known)
+Because the true per-user effect is simulated, we can grade the estimates directly. All
+learners recover the true ranking (Spearman) and the average effect (ATE error ≈ 0):
+
+| learner | Qini | policy@30% | random | spearman vs truth↑ | ATE abs err↓ |
+|---|---|---|---|---|---|
+| slearner | 257.9 | 0.5744 | 0.5148 | **0.951** | 0.0004 |
+| tlearner | 238.4 | 0.5686 | 0.5148 | 0.845 | 0.0016 |
+| **xlearner** | 247.3 | 0.5710 | 0.5148 | 0.902 | **0.0002** |
+| rlearner | 240.5 | 0.5684 | 0.5148 | 0.848 | 0.0003 |
+
+### Cross-check — from-scratch R-learner vs econml (`src/crosscheck.py`)
+```
+scratch R-learner : Qini = 240.5
+econml NonParamDML: Qini = 231.7
+Spearman(scratch, econml) = 0.961   # implementations agree on the ranking
+Spearman(scratch, truth)  = 0.848   # both recover the known true effect
+```
+0.96 rank-correlation with Microsoft's maintained library is the evidence the hand-rolled
+estimator is **correct**, not just plausible.
+
+> **Résumé line (real numbers):** *Built an end-to-end uplift-targeting engine (S/T/X/R
+> meta-learners) on the 64k-row Hillstrom experiment; uplift policy beat random targeting
+> at a fixed 30% budget, and a from-scratch R-learner matched econml's NonParamDML at
+> 0.96 rank-correlation; validated on a simulated RCT at 0.95 Spearman vs known truth and
+> ~0 ATE error. Shipped a budget-aware decision API + Streamlit UI.*
+
+---
+
 ## What it does (the flow)
 
 ```
@@ -71,19 +124,9 @@ Four meta-learners, hand-rolled over XGBoost bases (`--learner` flag):
 | **R** | residual-on-residual (Nie–Wager), cross-fitted nuisances | noisy outcomes, confounding-robust |
 
 **Cross-check (the rigor move):** `src/crosscheck.py` trains the from-scratch **R-learner**
-and **econml's `NonParamDML`** (Microsoft's R-learner) on the same split and compares them.
-On the simulated RCT:
-
-```
-scratch R-learner : Qini = 92.6
-econml NonParamDML: Qini = 94.1
-Spearman(scratch, econml) = 0.93   # implementations agree on the user ranking
-Spearman(scratch, truth)  = 0.76   # both recover the known true effect
-```
-
-A 0.93 rank correlation with an independently-maintained library is the evidence that the
-hand-rolled estimator is *correct*, not just *plausible* — exactly the kind of validation
-that separates a senior causal-ML project from a tutorial.
+and **econml's `NonParamDML`** (Microsoft's R-learner) on the same split and compares them
+— a 0.96 rank-correlation says the hand-rolled estimator is *correct*, not just *plausible*.
+See [Results](#-results) for the numbers + chart.
 
 ---
 
@@ -187,10 +230,8 @@ Models **intent-to-treat** on `treatment` (randomized → unconfounded). Swap to
 - **Policy value** — expected outcome of *your* targeting policy vs **random** and vs **treat-all**
 - **Budget efficiency** — outcome lift per unit budget at a fixed treat-rate
 
-**Resume bullet (fill the brackets):**
-> *Built end-to-end uplift-targeting engine (T/X/R meta-learners) on [N] experiment records;
-> Qini [x] vs 0 random, top-30% policy captured [y]% of total incremental effect at [z]% of
-> budget; deployed a treat/don't-treat decision API + Streamlit UI.*
+**Résumé bullet** — real numbers in [Results](#-results) above (Hillstrom + simulated +
+econml cross-check), not placeholders.
 
 ---
 
