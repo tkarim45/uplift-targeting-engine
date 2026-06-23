@@ -214,18 +214,3 @@ uplift-targeting-engine/
 ├── requirements.txt
 └── Dockerfile
 ```
-
----
-
-## Build order (TODO)
-
-- [x] `src/data.py` — simulate RCT (**known truth**) + **Hillstrom** + **Criteo (chunked-sampled)** loaders
-- [x] `src/learners.py` — S/T/X/**R** learners over XGBoost + **econml cross-check (done)**
-- [x] `src/evaluate.py` — Qini + policy value; **validates vs sim truth** (Spearman/Pearson/MAE/ATE)
-- [x] `src/train.py` — CLI fit + persist to `artifacts/` (model + features + `score_ref`)
-- [x] `api/main.py` — `/score` with **budget-derived threshold** + `/budget`, returns reason
-- [x] `app/streamlit_app.py` — budget slider → Qini frontier + **treat list (CSV export)**
-- [ ] Deploy public (Render/Fly/HF Spaces) + write the 2-page analysis with before/after chart
-
-> The rule that makes it senior: end with **what you measured, the baseline (random/treat-all),
-> the policy you chose, and the incremental value it captured** — not just "I trained a model."
