@@ -21,6 +21,9 @@ train:
 eval:
 	$(PY) -m src.evaluate --data data/processed/experiment.parquet --model artifacts/xlearner.pkl
 
+crosscheck:  # validate the from-scratch R-learner against econml (needs econml installed)
+	$(PY) -m src.crosscheck --data data/processed/experiment.parquet
+
 api:
 	$(PY) -m uvicorn api.main:app --reload --port 8000
 

@@ -2,12 +2,15 @@
 numpy>=1.26
 pandas>=2.2
 pyarrow>=15.0
+scipy>=1.11          # spearmanr in the cross-check
 scikit-learn>=1.4
 xgboost>=2.0
 
 # causal / uplift
-causalml>=0.15      # Uber: meta-learners + Qini/uplift metrics
-# econml>=0.15      # optional: Microsoft DR-/R-learner cross-checks
+causalml>=0.15      # Uber: meta-learners + Qini/uplift metrics (optional 3rd-party check)
+
+# optional — only needed for `python -m src.crosscheck` (R-learner validation)
+econml>=0.15        # Microsoft: NonParamDML reference R-learner
 
 # serving
 fastapi>=0.110
