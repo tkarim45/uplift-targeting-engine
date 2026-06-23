@@ -75,10 +75,22 @@ def policy_value(uplift_score, treatment, outcome, treat_rate: float = 0.3) -> d
 
 
 def validate_against_truth(uplift_score, true_uplift) -> dict:
-    """Sanity check only available on simulated data: does predicted ranking match truth?"""
-    s = pd.Series(uplift_score)
-    u = pd.Series(np.asarray(true_uplift))
-    return {"spearman_vs_true": float(s.corr(u, method="spearman"))}
+    """Validation only possible on simulated data, where the true per-user effect is known.
+
+    Returns ranking agreement (Spearman — what Qini ultimately rewards), pointwise error
+    (Pearson + MAE on the effect itself), and ATE recovery (mean predicted vs mean true).
+    A correct estimator should rank well AND land the average effect close to truth.
+    """
+    s = pd.Series(np.asarray(uplift_score, dtype=float))
+    u = pd.Series(np.asarray(true_uplift, dtype=float))
+    return {
+        "spearman_vs_true": float(s.corr(u, method="spearman")),
+        "pearson_vs_true": float(s.corr(u, method="pearson")),
+        "mae_uplift": float((s - u).abs().mean()),
+        "ate_pred": float(s.mean()),
+        "ate_true": float(u.mean()),
+        "ate_abs_err": float(abs(s.mean() - u.mean())),
+    }
 
 
 def main() -> None:
@@ -101,7 +113,13 @@ def main() -> None:
     print(f"policy value     : model={pv['model_policy']:.4f} "
           f"random={pv['random']:.4f} treat_all={pv['treat_all']:.4f}")
     if "true_uplift" in df:
-        print(f"spearman vs truth: {validate_against_truth(score, df['true_uplift'])['spearman_vs_true']:.3f}")
+        v = validate_against_truth(score, df["true_uplift"])
+        print("\n-- validation vs simulated ground truth --")
+        print(f"  ranking : spearman={v['spearman_vs_true']:.3f}  pearson={v['pearson_vs_true']:.3f}")
+        print(f"  effect  : MAE={v['mae_uplift']:.4f}")
+        print(f"  ATE     : pred={v['ate_pred']:.4f}  true={v['ate_true']:.4f}  |err|={v['ate_abs_err']:.4f}")
+    else:
+        print("\n(no ground truth — real data; rely on Qini + policy value above)")
 
 
 if __name__ == "__main__":

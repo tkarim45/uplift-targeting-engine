@@ -113,13 +113,20 @@ $PY -m src.evaluate --data data/processed/experiment.parquet --model artifacts/x
 # 3b. (optional) cross-check the from-scratch R-learner against econml's NonParamDML
 $PY -m src.crosscheck --data data/processed/experiment.parquet
 
-# 4. serve the decision API
+# 4. serve the decision API (threshold is derived from your budget)
 $PY -m uvicorn api.main:app --reload --port 8000
-# POST /score  body: {"features": {...}}  → {"uplift": .., "decision": "treat"}
+# POST /score  {"features": {...}, "budget": 0.30}
+#   -> {"uplift":.., "decision":"treat", "threshold":.., "percentile":.., "reason":..}
+# GET  /budget?budget=0.30   inspect the threshold a budget maps to
 
-# 5. interactive UI
+# 5. interactive UI (single-user scoring + budget slider -> Qini frontier + treat list)
 $PY -m streamlit run app/streamlit_app.py
 ```
+
+The `/score` threshold is **budget-derived**: training stashes the held-out uplift
+distribution (`score_ref`) in the model bundle, and the API maps `budget` (fraction you
+can afford to treat) to `threshold = quantile(scores, 1 − budget)`. Bigger budget → lower
+bar → more users treated.
 
 Docker:
 ```bash
@@ -214,10 +221,10 @@ uplift-targeting-engine/
 
 - [x] `src/data.py` — simulate RCT (**known truth**) + **Hillstrom** + **Criteo (chunked-sampled)** loaders
 - [x] `src/learners.py` — S/T/X/**R** learners over XGBoost + **econml cross-check (done)**
-- [ ] `src/evaluate.py` — Qini + policy value; **validate against simulated ground truth**
-- [ ] `src/train.py` — CLI fit + persist to `artifacts/`
-- [ ] `api/main.py` — `/score`, threshold = budget-derived, return reason
-- [ ] `app/streamlit_app.py` — budget slider → Qini frontier + treat list
+- [x] `src/evaluate.py` — Qini + policy value; **validates vs sim truth** (Spearman/Pearson/MAE/ATE)
+- [x] `src/train.py` — CLI fit + persist to `artifacts/` (model + features + `score_ref`)
+- [x] `api/main.py` — `/score` with **budget-derived threshold** + `/budget`, returns reason
+- [x] `app/streamlit_app.py` — budget slider → Qini frontier + **treat list (CSV export)**
 - [ ] Deploy public (Render/Fly/HF Spaces) + write the 2-page analysis with before/after chart
 
 > The rule that makes it senior: end with **what you measured, the baseline (random/treat-all),

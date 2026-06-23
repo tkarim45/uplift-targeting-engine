@@ -74,7 +74,31 @@ with tab_budget:
     st.pyplot(fig)
 
     pv = policy_value(score, t, y, treat_rate=rate)
-    c1, c2, c3 = st.columns(3)
+    threshold = float(pd.Series(score).quantile(1 - rate))
+    n_treat = int((score >= threshold).sum())
+    c1, c2, c3, c4 = st.columns(4)
     c1.metric("model policy", f"{pv['model_policy']:.4f}")
     c2.metric("random", f"{pv['random']:.4f}")
     c3.metric("treat-all", f"{pv['treat_all']:.4f}")
+    c4.metric("# to treat", f"{n_treat:,}", help=f"uplift ≥ {threshold:.4f}")
+
+    st.divider()
+    st.subheader(f"Treat list — top {rate:.0%} by estimated uplift")
+    treat_df = (
+        df.assign(uplift=score)
+        .loc[score >= threshold]
+        .sort_values("uplift", ascending=False)
+        .reset_index()
+        .rename(columns={"index": "user_id"})
+    )
+    show_cols = ["user_id", "uplift", "treatment", "outcome"] + (
+        ["true_uplift"] if "true_uplift" in df else []
+    )
+    st.caption(f"{len(treat_df):,} users selected at threshold {threshold:.4f}")
+    st.dataframe(treat_df[show_cols].head(200), use_container_width=True, hide_index=True)
+    st.download_button(
+        "⬇️ download full treat list (CSV)",
+        treat_df[show_cols].to_csv(index=False).encode(),
+        file_name=f"treat_list_top{int(rate * 100)}pct.csv",
+        mime="text/csv",
+    )
