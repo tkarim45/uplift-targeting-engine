@@ -1,0 +1,31 @@
+PY ?= ~/miniconda3/envs/personal/bin/python
+PIP ?= ~/miniconda3/envs/personal/bin/pip
+
+.PHONY: install data train eval api ui test docker
+
+install:
+	$(PIP) install -r requirements.txt
+
+data:
+	$(PY) -m src.data --dataset simulate --n 50000 --out data/processed/experiment.parquet
+
+hillstrom:
+	$(PY) -m src.data --dataset hillstrom --campaign any --outcome visit --out data/processed/experiment.parquet
+
+train:
+	$(PY) -m src.train --data data/processed/experiment.parquet --learner xlearner
+
+eval:
+	$(PY) -m src.evaluate --data data/processed/experiment.parquet --model artifacts/xlearner.pkl
+
+api:
+	$(PY) -m uvicorn api.main:app --reload --port 8000
+
+ui:
+	$(PY) -m streamlit run app/streamlit_app.py
+
+test:
+	$(PY) -m pytest -q
+
+docker:
+	docker build -t uplift-engine . && docker run -p 8000:8000 uplift-engine

@@ -1,0 +1,21 @@
+# data + artifacts (keep repo light; pin sources in README)
+data/raw/*
+data/processed/*
+!data/**/.gitkeep
+artifacts/
+*.pkl
+*.parquet
+*.csv
+
+# python
+__pycache__/
+*.py[cod]
+.ipynb_checkpoints/
+.pytest_cache/
+.venv/
+env/
+
+# os / editor
+.DS_Store
+.vscode/
+.idea/
